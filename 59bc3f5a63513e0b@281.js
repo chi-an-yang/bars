@@ -3,7 +3,7 @@ md`<div style="color: grey; font: 13px/25.5px var(--sans-serif); text-transform:
 
 # Stacked-to-grouped bars
 
-Animations can preserve object constancy, allowing the reader to follow the data across views. See [Heer and Robertson](http://vis.berkeley.edu/papers/animated_transitions/) for more.`
+Central government budget allocations for 2019 (source: <code>tw2019ap.csv</code>) are shown by function (x-axis). Each color corresponds to a supervising agency; switch between stacked and grouped layouts to compare totals.`
 )}
 
 function _layout(Inputs)
@@ -28,25 +28,27 @@ function _chart(d3,n,yz,xz)
   const height = 500;
   const marginTop = 0;
   const marginRight = 0;
-  const marginBottom = 10;
+  const marginBottom = 200;
   const marginLeft = 0;
 
-  const y01z = d3.stack()
-      .keys(d3.range(n))
-    (d3.transpose(yz)) // stacked yz
+  const y01z = d3
+    .stack()
+    .keys(d3.range(n))(d3.transpose(yz)) // stacked yz
     .map((data, i) => data.map(([y0, y1]) => [y0, y1, i]));
 
   const yMax = d3.max(yz, y => d3.max(y));
   const y1Max = d3.max(y01z, y => d3.max(y, d => d[1]));
 
-  const x = d3.scaleBand()
-      .domain(xz)
-      .rangeRound([marginLeft, width - marginRight])
-      .padding(0.08);
+  const x = d3
+    .scaleBand()
+    .domain(xz)
+    .rangeRound([marginLeft, width - marginRight])
+    .padding(0.08);
 
-  const y = d3.scaleLinear()
-      .domain([0, y1Max])
-      .range([height - marginBottom, marginTop]);
+  const y = d3
+    .scaleLinear()
+    .domain([0, y1Max])
+    .range([height - marginBottom, marginTop]);
 
   const color = d3.scaleSequential(d3.interpolateBlues)
       .domain([-0.5 * n, 1.5 * n]);
@@ -64,14 +66,22 @@ function _chart(d3,n,yz,xz)
     .selectAll("rect")
     .data(d => d)
     .join("rect")
-      .attr("x", (d, i) => x(i))
+      .attr("x", (d, i) => x(xz[i]))
       .attr("y", height - marginBottom)
       .attr("width", x.bandwidth())
       .attr("height", 0);
 
-  svg.append("g")
-      .attr("transform", `translate(0,${height - marginBottom})`)
-      .call(d3.axisBottom(x).tickSizeOuter(0).tickFormat(() => ""));
+  const xAxis = svg
+    .append("g")
+    .attr("transform", `translate(0,${height - marginBottom})`)
+    .call(d3.axisBottom(x).tickSizeOuter(0));
+
+  xAxis
+    .selectAll("text")
+    .attr("text-anchor", "end")
+    .attr("transform", "rotate(-35)")
+    .attr("dx", "-0.6em")
+    .attr("dy", "0.4em");
 
   function transitionGrouped() {
     y.domain([0, yMax]);
@@ -79,7 +89,7 @@ function _chart(d3,n,yz,xz)
     rect.transition()
         .duration(500)
         .delay((d, i) => i * 20)
-        .attr("x", (d, i) => x(i) + x.bandwidth() / n * d[2])
+        .attr("x", (d, i) => x(xz[i]) + (x.bandwidth() / n) * d[2])
         .attr("width", x.bandwidth() / n)
       .transition()
         .attr("y", d => y(d[1] - d[0]))
@@ -95,7 +105,7 @@ function _chart(d3,n,yz,xz)
         .attr("y", d => y(d[1]))
         .attr("height", d => y(d[0]) - y(d[1]))
       .transition()
-        .attr("x", (d, i) => x(i))
+        .attr("x", (d, i) => x(xz[i]))
         .attr("width", x.bandwidth());
   }
 
@@ -112,49 +122,49 @@ function _update(chart,layout){return(
 chart.update(layout)
 )}
 
-function _xz(d3,m){return(
-d3.range(m)
+function _xz(categories){return(
+categories
 )}
 
-function _yz(d3,n,bumps,m){return(
-d3.range(n).map(() => bumps(m))
+function _yz(d3,topnames,categories,budgetData){return(
+(() => {
+  const totals = d3.rollup(
+    budgetData,
+    v => d3.sum(v, d => d.amount),
+    d => d.topname,
+    d => d.cat
+  );
+
+  return topnames.map(topname =>
+    categories.map(category => totals.get(topname)?.get(category) ?? 0)
+  );
+})()
 )}
 
-function _n(){return(
-5
+function _topnames(d3,budgetData){return(
+d3
+  .rollups(budgetData, v => d3.sum(v, d => d.amount), d => d.topname)
+  .sort((a, b) => d3.descending(a[1], b[1]))
+  .map(([name]) => name)
 )}
 
-function _m(){return(
-58
+function _categories(d3,budgetData){return(
+d3
+  .rollups(budgetData, v => d3.sum(v, d => d.amount), d => d.cat)
+  .sort((a, b) => d3.descending(a[1], b[1]))
+  .map(([category]) => category)
 )}
 
-function _bumps(){return(
-function bumps(m) {
-  const values = [];
+function _budgetData(d3){return(
+d3.csv("tw2019ap.csv", d3.autoType)
+)}
 
-  // Initialize with uniform random values in [0.1, 0.2).
-  for (let i = 0; i < m; ++i) {
-    values[i] = 0.1 + 0.1 * Math.random();
-  }
+function _n(topnames){return(
+topnames.length
+)}
 
-  // Add five random bumps.
-  for (let j = 0; j < 5; ++j) {
-    const x = 1 / (0.1 + Math.random());
-    const y = 2 * Math.random() - 0.5;
-    const z = 10 / (0.1 + Math.random());
-    for (let i = 0; i < m; i++) {
-      const w = (i / m - y) * z;
-      values[i] += x * Math.exp(-w * w);
-    }
-  }
-
-  // Ensure all values are positive.
-  for (let i = 0; i < m; ++i) {
-    values[i] = Math.max(0, values[i]);
-  }
-
-  return values;
-}
+function _m(categories){return(
+categories.length
 )}
 
 export default function define(runtime, observer) {
@@ -164,10 +174,12 @@ export default function define(runtime, observer) {
   main.variable(observer("layout")).define("layout", ["Generators", "viewof layout"], (G, _) => G.input(_));
   main.variable(observer("chart")).define("chart", ["d3","n","yz","xz"], _chart);
   main.variable(observer("update")).define("update", ["chart","layout"], _update);
-  main.variable(observer("xz")).define("xz", ["d3","m"], _xz);
-  main.variable(observer("yz")).define("yz", ["d3","n","bumps","m"], _yz);
-  main.variable(observer("n")).define("n", _n);
-  main.variable(observer("m")).define("m", _m);
-  main.variable(observer("bumps")).define("bumps", _bumps);
+  main.variable(observer("xz")).define("xz", ["categories"], _xz);
+  main.variable(observer("yz")).define("yz", ["d3","topnames","categories","budgetData"], _yz);
+  main.variable(observer("topnames")).define("topnames", ["d3","budgetData"], _topnames);
+  main.variable(observer("categories")).define("categories", ["d3","budgetData"], _categories);
+  main.variable(observer("budgetData")).define("budgetData", ["d3"], _budgetData);
+  main.variable(observer("n")).define("n", ["topnames"], _n);
+  main.variable(observer("m")).define("m", ["categories"], _m);
   return main;
 }
