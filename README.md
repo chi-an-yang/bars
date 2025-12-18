@@ -31,3 +31,10 @@ const runtime = new Runtime();
 const main = runtime.module(define);
 main.value("foo").then(value => console.log(value));
 ~~~
+
+## Deploying to GitHub Pages
+
+This repository is ready to publish as a static site via GitHub Pages. Once you
+push to `main` (or this `work` branch), GitHub Actions will package the
+repository contents and deploy them to Pages automatically. You can also trigger
+the workflow manually from the Actions tab using **Deploy to GitHub Pages**.
