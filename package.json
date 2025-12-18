@@ -1,0 +1,14 @@
+{
+  "name": "59bc3f5a63513e0b",
+  "main": "59bc3f5a63513e0b@281.js",
+  "version": "281.0.0",
+  "homepage": "https://observablehq.com/d/59bc3f5a63513e0b",
+  "author": {
+    "name": "Chian",
+    "url": "https://observablehq.com/@chian"
+  },
+  "type": "module",
+  "peerDependencies": {
+    "@observablehq/runtime": "4 - 5"
+  }
+}
